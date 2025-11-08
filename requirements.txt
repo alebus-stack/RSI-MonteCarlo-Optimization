@@ -1,0 +1,8 @@
+# Python dependencies for the RSI strategy backtester
+pandas
+numpy
+yfinance
+matplotlib
+seaborn
+datetime
+warnings
