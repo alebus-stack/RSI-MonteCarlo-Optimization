@@ -1,0 +1,49 @@
+from AlgorithmImports import *
+
+class RSI2MeanReversion(QCAlgorithm):
+         
+    def Initialize(self):
+
+        self.SetStartDate(2020, 1, 1)
+        self.SetEndDate(2025, 9, 30)
+        self.SetCash(100000)
+    
+        self.symbol = self.AddEquity("SPY", Resolution.Daily).Symbol
+    
+        # Fixed lines - no Resolution parameter needed
+        self.rsi = self.RSI(self.symbol, 2)
+        self.sma_200 = self.SMA(self.symbol, 100)
+        
+        self.SetWarmUp(200)
+        
+    
+    def OnData(self, data):
+        # Skip if indicators aren't ready or during warmup
+        if not self.rsi.IsReady or not self.sma_200.IsReady:
+            return
+        
+        if self.IsWarmingUp:
+            return
+        
+        # Get current values
+        rsi_value = self.rsi.Current.Value
+        current_price = self.Securities[self.symbol].Price
+        sma_value = self.sma_200.Current.Value
+        
+        # TREND FILTER: Only trade if price is above 200-day SMA (long-term uptrend)
+        in_uptrend = current_price > sma_value
+        
+        # BUY SIGNAL: RSI-2 < 15 (oversold) AND in uptrend
+        if rsi_value < 15 and in_uptrend:
+            if not self.Portfolio[self.symbol].Invested:
+                self.SetHoldings(self.symbol, 1.0)  # Go 100% long
+                self.Debug(f"BUY: RSI-2 = {rsi_value:.2f}, Price = ${current_price:.2f}, SMA200 = ${sma_value:.2f}")
+        
+        # SELL SIGNAL: RSI-2 > 85 (overbought) OR trend broken
+        elif self.Portfolio[self.symbol].Invested:
+            if rsi_value > 85 or not in_uptrend:
+                self.Liquidate(self.symbol)
+                self.Debug(f"SELL: RSI-2 = {rsi_value:.2f}, Price = ${current_price:.2f}")
+    
+    def OnEndOfAlgorithm(self):
+        self.Debug(f"Final Portfolio Value: ${self.Portfolio.TotalPortfolioValue:,.2f}")
